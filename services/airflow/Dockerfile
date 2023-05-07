@@ -6,5 +6,6 @@ FROM ${AIRFLOW_BASE_IMAGE}
 # geopandas & pygeos for mapping lat lon coordinates to NYC taxi zone ids
 RUN pip install --user --no-cache-dir \
     boto3 \
+    minio==5.0.10 \ 
     pyarrow==0.17.1 \
     apache-airflow-providers-amazon~=1.0.0

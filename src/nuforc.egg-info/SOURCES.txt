@@ -1,0 +1,12 @@
+setup.py
+src/nuforc/__init__.py
+src/nuforc.egg-info/PKG-INFO
+src/nuforc.egg-info/SOURCES.txt
+src/nuforc.egg-info/dependency_links.txt
+src/nuforc.egg-info/requires.txt
+src/nuforc.egg-info/top_level.txt
+src/nuforc/hooks/__init__.py
+src/nuforc/hooks/minio_hook.py
+src/nuforc/operators/__init__.py
+src/nuforc/operators/pandas_operator.py
+src/nuforc/operators/s3_to_postgres.py

@@ -12,8 +12,9 @@ x-environment:
   - AIRFLOW__CORE__STORE_DAG_CODE=True
   - AIRFLOW__CORE__STORE_SERIALIZED_DAGS=True
   - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
-  - AIRFLOW_CONN_NUFORC=http://citibike:cycling@nuforc_api:5000
-  - AIRFLOW_CONN_MY_AWS_CONN=aws://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@/?region_name=us-east-1
+  - AIRFLOW_CONN_NUFORC=http://ufo:uap@nuforc_api:5000
+  - AIRFLOW_CONN_MY_AWS_CONN=aws://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@/?region_name=${REGION_NAME}
+  - AIRFLOW_VAR_BUCKET=${AIRFLOW_VAR_BUCKET}
 
 x-airflow-image: &airflow_image apache/airflow:2.0.0-python3.8
 # ====================================== /AIRFLOW ENVIRONMENT VARIABLES ======================================
@@ -64,11 +65,16 @@ services:
       - postgres
     volumes:
       - ./dags:/opt/airflow/dags
-      - ./src:/opt/airflow/nyctransport/src
+      - ./src:/opt/airflow/nuforc/src
+      - ./setup.py:/opt/airflow/nuforc/setup.py
       - logs:/opt/airflow/logs
     environment: *airflow_environment
     entrypoint: [ "/bin/sh" ]
-    command: [ "-c", "airflow scheduler" ]
+    command:
+      [
+        "-c",
+        "pip install --user -e /opt/airflow/nuforc && airflow scheduler"
+      ]
 
   nuforc_api:
     build:
