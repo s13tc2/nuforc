@@ -1,0 +1,118 @@
+version: '3.7'
+
+# ====================================== AIRFLOW ENVIRONMENT VARIABLES =======================================
+x-environment:
+  &airflow_environment
+  - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=False
+  - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+  - AIRFLOW__CORE__FERNET_KEY=hCRoPUYBO27QiEg1MRu5hSjLG7yNd8y8XKlm-8kRlkQ=
+  - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
+  - AIRFLOW__CORE__LOAD_EXAMPLES=False
+  - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql://airflow:airflow@postgres:5432/airflow
+  - AIRFLOW__CORE__STORE_DAG_CODE=True
+  - AIRFLOW__CORE__STORE_SERIALIZED_DAGS=True
+  - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+  - AIRFLOW_CONN_NUFORC=http://citibike:cycling@nuforc_api:5000
+  - AIRFLOW_CONN_MY_AWS_CONN=aws://${AWS_ACCESS_KEY_ID}:${AWS_SECRET_ACCESS_KEY}@/?region_name=us-east-1
+
+x-airflow-image: &airflow_image apache/airflow:2.0.0-python3.8
+# ====================================== /AIRFLOW ENVIRONMENT VARIABLES ======================================
+
+services:
+  postgres:
+    image: postgres:12-alpine
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5432:5432"
+
+  initdb_adduser:
+    build:
+      context: ./services/airflow
+      args:
+        AIRFLOW_BASE_IMAGE: *airflow_image
+    depends_on:
+      - postgres
+    environment: *airflow_environment
+    entrypoint: /bin/bash
+    command: -c 'airflow db init && airflow users create --username admin --password admin --firstname Anonymous --lastname Admin --role Admin --email admin@example.org'
+
+  webserver:
+    build:
+      context: ./services/airflow
+      args:
+        AIRFLOW_BASE_IMAGE: *airflow_image
+    restart: always
+    depends_on:
+      - postgres
+    volumes:
+      - logs:/opt/airflow/logs
+    ports:
+      - "8080:8080"
+    environment: *airflow_environment
+    command: webserver
+
+  scheduler:
+    build:
+      context: ./services/airflow
+      args:
+        AIRFLOW_BASE_IMAGE: *airflow_image
+    restart: always
+    depends_on:
+      - postgres
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/opt/airflow/nyctransport/src
+      - logs:/opt/airflow/logs
+    environment: *airflow_environment
+    entrypoint: [ "/bin/sh" ]
+    command: [ "-c", "airflow scheduler" ]
+
+  nuforc_api:
+    build:
+      context: ./services/nuforc_api
+    environment:
+      - POSTGRES_HOST=nuforc_db
+      - POSTGRES_PORT=5434
+      - POSTGRES_USERNAME=ufo
+      - POSTGRES_PASSWORD=uap
+      - POSTGRES_DATABASE=nuforc
+      - DATA_YEAR=2019
+    depends_on:
+      - nuforc_db
+    ports:
+      - "8082:5000"
+
+  nuforc_db:
+    build:
+      context: ./services/nuforc_db
+    ports:
+      - "5434:5432"
+
+  dashboard:
+    image: metabase/metabase:latest
+    container_name: dashboard
+    ports:
+      - "3000:3000"
+
+  warehouse:
+    image: postgres:13
+    container_name: warehouse
+    environment:
+      - POSTGRES_HOST=warehouse
+      - POSTGRES_USER=sdeuser
+      - POSTGRES_PASSWORD=sdepassword1234
+      - POSTGRES_DB=finance
+      - POSTGRES_PORT=5436
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}" ]
+      interval: 5s
+      retries: 5
+    restart: always
+    ports:
+      - "5436:5432"
+
+volumes:
+  logs:
